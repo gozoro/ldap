@@ -1,2 +1,2 @@
 # ldap
-A simple tool for getting user data from LDAP
+A simple tool for getting user data from Active Directory.
