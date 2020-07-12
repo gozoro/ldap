@@ -35,29 +35,29 @@ class Ldap
 	{
 		if(!function_exists('ldap_connect'))
 		{
-			static::throwException("PHP ldap-extension is undefined.");
+			throw new LdapConfigException("PHP ldap-extension is not installed.");
 		}
 
 		if(empty($config))
 		{
-			static::throwException("Config is undefined.");
+			throw new LdapConfigException("Config is undefined.");
 		}
 
 
 		if(!empty($config['username']))
 			$this->_username = $config['username'];
 		else
-			static::throwException("Parameter [username] must be set.");
+			throw new LdapConfigException("Parameter [username] must be set.");
 
 		if(!empty($config['password']))
 			$this->_password = $config['password'];
 		else
-			static::throwException("Parameter [password] must be set.");
+			throw new LdapConfigException("Parameter [password] must be set.");
 
 		if(!empty($config['hosts']))
 			$this->_hosts = (array)$config['hosts'];
 		else
-			static::throwException("Parameter [hosts] must be set. The parameter must contain an array of hosts domain controllers.");
+			throw new LdapConfigException("Parameter [hosts] must be set. The parameter must contain an array of hosts domain controllers.");
 
 		if(!empty($config['domainName']))
 		{
@@ -70,7 +70,7 @@ class Ldap
 
 		}
 		else
-			static::throwException("Parameter [domainName] must be set. The parameter must contain the full domain name (e.g., mydomain.net).");
+			throw new LdapConfigException("Parameter [domainName] must be set. The parameter must contain the full domain name (e.g., mydomain.net).");
 
 		if(!empty($config['dnsSuffixes']))
 		{
@@ -96,7 +96,7 @@ class Ldap
 			if(in_array($protocol, $protocols))
 				$this->_protocolVersion = $protocol;
 			else
-				static::throwException("Unknow protocol version.");
+				throw new LdapConfigException("Unknow protocol version.");
 		}
 
 
@@ -165,7 +165,7 @@ class Ldap
 	}
 
 	/**
-	 * Returns the timeout connection to LDAP.
+	 * Returns the timeout connection to LDAP-server.
 	 * @return int
 	 */
 	public function getTimeout()
@@ -281,26 +281,22 @@ class Ldap
 	 * $filter = "(&(objectClass=user)(memberof=CN=admins,OU=admins2folder,DC=rg,DC=net))";<br />
 	 *
 	 * @param string $filter filter
-	 * @param array $attributes [optional] result attributes. Default value: $this->getDefaultLdapAttributes()
+	 * @param array $attributes [optional] result attributes. Default value: Ldap::defaultLdapAttributes()
 	 * @param string $dn [optional] distinguished name. Default value: $this->getBaseDN()
 	 * @return array result tree
 	 */
 	public function search($filter, $attributes = null, $dn = null)
 	{
-		if(!$this->_link)
-		{
-			static::throwException("No connection to the LDAP server.");
-		}
-
 		if( !(@\ldap_bind($this->_link, $this->getUsername(), $this->getPassword())) )
 		{
 			$errmsg = $this->getErrorMessage();
-			static::throwException("Failed to connect to any LDAP domain host [domainName=".$this->getDomainName()."]. $errmsg.");
+			$domainName = $this->getDomainName();
+			throw new LdapException("Connection failed to establish to $domainName. $errmsg.");
 		}
 
 		if(is_null($attributes))
 		{
-			$attributes = $this->getDefaultLdapAttributes();
+			$attributes = static::defaultLdapAttributes();
 		}
 
 		if(is_null($dn))
@@ -395,7 +391,7 @@ class Ldap
 	 *
 	 * @return array
 	 */
-	public function getDefaultLdapAttributes()
+	static function defaultLdapAttributes()
 	{
 		return array('samaccountname',
 			'objectCategory', 'objectClass', 'objectSID', 'objectGUID',
@@ -494,7 +490,7 @@ class Ldap
 
 		if($parsedUsername === false)
 		{
-			static::throwException('Username is incorrect.');
+			throw new LdapException('The username you searched is not correct.');
 		}
 
 		$username = $parsedUsername['username'];
@@ -503,7 +499,7 @@ class Ldap
 
 		if(!in_array($domain, $this->getDnsSuffixes()))
 		{
-			static::throwException("The user's domain does not match the connection domain.");
+			throw new LdapException("The user's domain does not match the connection domain.");
 		}
 
 		$userPrincipalName = $username.'@'.$domain;
@@ -537,7 +533,7 @@ class Ldap
 
 		if($parsedUsername === false)
 		{
-			static::throwException('Username is incorrect.');
+			throw new LdapException('The username you searched is not correct.');
 		}
 
 		$domain = $parsedUsername['domain'];
@@ -545,7 +541,7 @@ class Ldap
 		$suffixes = $this->getDnsSuffixes();
 		if(!in_array($domain, $suffixes))
 		{
-			static::throwException("The user's domain does not match the connection domain.");
+			throw new LdapException("The user's domain does not match the connection domain.");
 		}
 
 		$defaultAttributes = LdapUser::defaultAttributes();
@@ -607,7 +603,7 @@ class Ldap
 	{
 		if(!static::validateCharacters($groupName))
 		{
-			static::throwException('Group name is incorrect.');
+			throw new LdapException('The group name you searched is not correct.');
 		}
 
 		$defaultAttributes = LdapGroup::defaultAttributes();
@@ -654,11 +650,6 @@ class Ldap
 	 */
 	public function validatePassword($principalName, $password)
 	{
-		if(!$this->_link)
-		{
-			static::throwException("No connection to the LDAP server.");
-		}
-
 		if($password)
 		{
 			if(@\ldap_bind($this->_link, $principalName, $password))
@@ -675,7 +666,7 @@ class Ldap
 				}
 				else
 				{
-					static::throwException( $this->getErrorMessage() );
+					throw new LdapException( $this->getErrorMessage() );
 				}
 			}
 		}
@@ -683,17 +674,6 @@ class Ldap
 		{
 			return false;
 		}
-	}
-
-	/**
-	 * Throws exception.
-	 *
-	 * @param string $message
-	 * @throws LdapException
-	 */
-	static protected function throwException($message)
-	{
-		throw new LdapException($message);
 	}
 
 	/**
@@ -747,7 +727,7 @@ class Ldap
 			return strtolower($a.'-'.$b.'-'.$c.'-'.$d.'-'.$e);
 		}
 		else
-			static::throwException("Invalid GUID format. The unpacked GUID string does not match the size of 32 characters.");
+			throw new LdapException("Invalid GUID format. The unpacked GUID string does not match the size of 32 characters.");
 	}
 
 
@@ -774,7 +754,7 @@ class Ldap
 			return hex2bin($a.$b.$c.$d.$e);
 		}
 		else
-			static::throwException("Invalid GUID format.");
+			throw new LdapException("Invalid GUID format.");
 	}
 
 
@@ -823,3 +803,8 @@ class Ldap
  * Ldap exception.
  */
 class LdapException extends \Exception{}
+
+/**
+ * LdapConfigException represents an exception caused by incorrect ldap-object configuration.
+ */
+class LdapConfigException extends LdapException{}
