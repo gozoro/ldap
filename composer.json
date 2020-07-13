@@ -1,0 +1,22 @@
+{
+	"name": "gozoro/ldap",
+	"description": "A simple PHP class for getting user data from Active Directory.",
+	"keywords": ["LDAP", "Active Directory", "ActiveDirectory"],
+	"homepage": "https://github.com/gozoro/ldap",
+	"type": "library",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Gozoro",
+			"email": "gozoro@yandex.ru"
+		}
+	],
+	"require": {
+		"php": ">=5.5.9"
+	},
+	"autoload": {
+		"psr-4": {
+			"gozoro\\ldap\\": "src"
+		}
+	}
+}
