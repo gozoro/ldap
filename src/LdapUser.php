@@ -382,6 +382,9 @@ class LdapUser extends LdapObject
 	{
 		$dn = $this->getDN();
 
+		$dn = \str_replace(['\\'], ['\\\\'], $dn);
+		$dn = \str_replace(['(', ')'], ['\(', '\)'], $dn);
+
 		$ldapGroups = $this->ldap()->search('(&(objectClass=group)(member='.$dn.'))', LdapGroup::defaultAttributes());
 
 		$groups = [];
