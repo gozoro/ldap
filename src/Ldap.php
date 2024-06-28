@@ -211,7 +211,7 @@ class Ldap
 	 */
 	protected function disconnect()
 	{
-        if(is_resource($this->_link))
+        if($this->_link)
         {
 			if(@\ldap_unbind($this->_link))
 			{
@@ -350,14 +350,19 @@ class Ldap
 	/**
 	 * Decodes the search result.
      *
-	 * @param resource $searchResult result of method search()
-	 * @return array
+	 * @param \LDAP\Result $searchResult result of method search()
+	 * @return array|false
 	 */
 	protected function searchDecode($searchResult)
 	{
 		if(!$this->_link)
 		{
 			return [];
+		}
+
+		if(empty($searchResult))
+		{
+			return false;
 		}
 
 		return \ldap_get_entries($this->_link, $searchResult);
