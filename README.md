@@ -20,7 +20,7 @@ Configuration
 - **domainName** - domain name, for example "example.net".
 - **dnsSuffixes** - here you can specify additional dns suffixes for complex domains.
 - **timeout** - sets timeout to the `LDAP_OPT_NETWORK_TIMEOUT` option.
-- **protocolVersion** - sets protocol version (2 or 3) to LDAP_OPT_PROTOCOL_VERSION option. By default version: 3.
+- **protocolVersion** - sets protocol version (2 or 3) to `LDAP_OPT_PROTOCOL_VERSION` option. By default version: 3.
 
 - **beforeConnect** - the event handler function for example `function(Ldap $ldap){ ... }`.
 - **afterConnect**  - the event handler function for example `function(Ldap $ldap){ ... }`.
