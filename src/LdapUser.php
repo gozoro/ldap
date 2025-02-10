@@ -417,11 +417,13 @@ class LdapUser extends LdapObject
 	 * Validate password. Returns TRUE if the password allows authentication.
 	 *
 	 * @param string $password
+	 * @param string $saslMech (optional) The SASL mechanism for validating the user password when using SASL.
+	 * 									  By Default DIGEST-MD5.
 	 * @return boolean
 	 */
-	public function validatePassword($password)
+	public function validatePassword($password, $saslMech='DIGEST-MD5')
 	{
 		$principalName = $this->getPrincipalName();
-		return $this->ldap()->validatePassword($principalName, $password);
+		return $this->ldap()->validatePassword($principalName, $password, $saslMech);
 	}
 }

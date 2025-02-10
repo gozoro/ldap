@@ -1,7 +1,7 @@
 {
 	"name": "gozoro/ldap",
-	"description": "A simple PHP class for getting user data from Active Directory.",
-	"keywords": ["LDAP", "Active Directory", "ActiveDirectory"],
+	"description": "A simple PHP class for getting user data from Active Directory or other LDAP servers.",
+	"keywords": ["LDAP", "Active Directory", "ActiveDirectory", "Kerberos", "SASL", "GSSAPI", "DIGEST-MD5", "STARTTLS"],
 	"homepage": "https://github.com/gozoro/ldap",
 	"type": "library",
 	"license": "MIT",
