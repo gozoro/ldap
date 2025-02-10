@@ -30,7 +30,7 @@ Configuration
 - **afterSearch**   - the event handler function for example `function(Ldap $ldap){ ... }`.
 	
 - **starttls** - start TLS after connect to LDAP-server.
-- **SASL**     - here you can set SASL mechanism. For example: `GSSAPI`,`DIGEST-MD5`, etc. By default - empty string SALS is disabled. [SASL](https://en.wikipedia.org/wiki/Simple_Authentication_and_Security_Layer) - Simple Authentication and Security Layer.
+- **SASL**     - here you can set [SASL](https://en.wikipedia.org/wiki/Simple_Authentication_and_Security_Layer) (Simple Authentication and Security Layer) mechanism. For example: `GSSAPI`,`DIGEST-MD5`, etc. By default - empty string (SALS is disabled).
 
 
 #### Popular SASL mechanisms
@@ -103,7 +103,7 @@ $config = [
 		}
 	},
 
-	'afterDisconnect' => function(){
+	'afterClose' => function(){
 		$cmd = "kdestroy 2>&1";
 		exec($cmd, $output, $result);
 		if ($result !== 0) {
