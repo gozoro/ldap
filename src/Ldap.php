@@ -58,7 +58,7 @@ class Ldap
 
 	/**
 	 * Link identifier
-	 * @var \Ldap\Connection
+	 * @var \Ldap\Connection|resource
 	 */
 	private $_link;
 
@@ -637,7 +637,7 @@ class Ldap
 	/**
 	 * Decodes the search result.
      *
-	 * @param \Ldap\Result $searchResult result of method search()
+	 * @param \Ldap\Result|resource $searchResult result of method search()
 	 * @return array|false
 	 */
 	protected function searchDecode($searchResult)
