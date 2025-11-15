@@ -414,7 +414,7 @@ class LdapUser extends LdapObject
 	}
 
 	/**
-	 * Validate password. Returns TRUE if the password allows authentication.
+	 * Validate password. Returns TRUE when the password allows authentication.
 	 *
 	 * @param string $password
 	 * @return boolean
