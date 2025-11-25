@@ -951,7 +951,7 @@ class Ldap
 
 		if($this->useSASL())
 		{
-			$ok = @ldap_sasl_bind($this->_link, null, $password, $this->_saslPassMech, $this->_saslRealm, $username);
+			$ok = @ldap_sasl_bind($this->_link, null, $password, $this->_saslPassMech, $this->_saslRealm, $samaccountName);
 		}
 		else
 		{
