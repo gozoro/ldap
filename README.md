@@ -28,6 +28,8 @@ Configuration
 - **afterClose**    - the event handler function for example `function(Ldap $ldap){ ... }`.
 - **beforeSearch**  - the event handler function for example `function(Ldap $ldap){ ... }`.
 - **afterSearch**   - the event handler function for example `function(Ldap $ldap){ ... }`.
+- **beforeValidatePassword**  - the event handler function for example `function(Ldap $ldap){ ... }`.
+- **afterValidatePassword**   - the event handler function for example `function(Ldap $ldap){ ... }`.
 	
 - **starttls** - start TLS after connect to LDAP-server.
 - **SASL_MECH**     - here you can set SASL mechanism. For example: `GSSAPI`,`DIGEST-MD5`, etc. By default - empty string SALS is disabled. [SASL](https://en.wikipedia.org/wiki/Simple_Authentication_and_Security_Layer) - Simple Authentication and Security Layer.
@@ -94,7 +96,7 @@ $config = [
 	'domainName' => 'example.net',
 	'protocolVersion' => 3,
 
-	'SASL_MECH'      => 'GSSAPI',
+	'SASL_MECH'      => 'GSSAPI',     // Kerberos v5
 	'SASL_PASS_MECH' => 'DIGEST-MD5', // mechanism of validating user's password
 	'SASL_REALM'     => 'example.net'
 

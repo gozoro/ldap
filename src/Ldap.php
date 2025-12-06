@@ -57,10 +57,10 @@ class Ldap
 	private $_protocolVersion = 3;
 
 	/**
-	 * Link identifier
+	 * Connection
 	 * @var \Ldap\Connection|resource
 	 */
-	private $_link;
+	private $_conn;
 
 	private $_eventHandlers = [];
 
@@ -109,6 +109,8 @@ class Ldap
 	 * - $config['afterClose']       - the event handler function for example `function(Ldap $ldap){ ... }`.
 	 * - $config['beforeSearch']     - the event handler function for example `function(Ldap $ldap){ ... }`.
 	 * - $config['afterSearch']      - the event handler function for example `function(Ldap $ldap){ ... }`.
+	 * - $config['beforeValidatePassword'] - the event handler function for example `function(Ldap $ldap){ ... }`.
+	 * - $config['afterValidatePassword']  - the event handler function for example `function(Ldap $ldap){ ... }`.
 	 *
 	 * - $config['starttls']       - start TLS after connect to LDAP-server.
 	 * - $config['SASL_MECH']      - here you can set SASL mechanism. For example: GSSAPI, DIGEST-MD5, etc. By default (empty string) SALS is disabled.
@@ -224,6 +226,11 @@ class Ldap
 		if(!empty($config['afterSearch']))
 			$this->addEventHandler('afterSearch', $config['afterSearch']);
 
+		if(!empty($config['beforeValidatePassword']))
+			$this->addEventHandler('beforeValidatePassword', $config['beforeValidatePassword']);
+
+		if(!empty($config['afterValidatePassword']))
+			$this->addEventHandler('afterValidatePassword', $config['afterValidatePassword']);
 
 		if(!empty($config['starttls']))
 		{
@@ -387,41 +394,33 @@ class Ldap
 
 	/**
 	 * Connects to LDAP-server without events.
-	 * @return resource
+	 * @return \Ldap\Connection|resource
 	 */
 	private function _connect()
 	{
-		$link = \ldap_connect();
-		$this->_link = $link;
+		$conn = \ldap_connect();
+
 
 		$space_host = implode(' ', $this->getHosts());
 
-		\ldap_set_option($link, \LDAP_OPT_HOST_NAME, $space_host);
+		\ldap_set_option($conn, \LDAP_OPT_HOST_NAME, $space_host);
 
 		if(isset($this->_timeout) and $this->_timeout > 0)
-			\ldap_set_option($link, \LDAP_OPT_NETWORK_TIMEOUT, $this->_timeout);
+			\ldap_set_option($conn, \LDAP_OPT_NETWORK_TIMEOUT, $this->_timeout);
 
-		\ldap_set_option($link, \LDAP_OPT_PROTOCOL_VERSION, $this->getProtocolVersion());
-		\ldap_set_option($link, \LDAP_OPT_REFERRALS, 0);
+		\ldap_set_option($conn, \LDAP_OPT_PROTOCOL_VERSION, $this->getProtocolVersion());
+		\ldap_set_option($conn, \LDAP_OPT_REFERRALS, 0);
 
 
 		if($this->_starttls)
 		{
-			if(!\ldap_start_tls($link))
+			if(!\ldap_start_tls($conn))
 			{
 				throw new LdapException("Failed start TLS");
 			}
 		}
 
-		if(!empty($this->_saslMech))
-		{
-			// SASL authentication
-			if (!(@ldap_sasl_bind($link, NULL, $this->_password, $this->_saslMech, $this->_saslRealm, $this->_username))) {
-				throw new LdapException($this->_saslMech." error: " . ldap_error($link));
-			}
-		}
-
-		return $this->_link;
+		return $conn;
 	}
 
 	/**
@@ -430,21 +429,34 @@ class Ldap
 	 */
 	public function connect()
 	{
-		if(!$this->_link)
+		if(!$this->_conn)
 		{
 			$this->triggerEvent('beforeConnect');
-			$this->_connect();
+			$this->_conn = $this->_connect();
+			$this->bind($this->_conn);
 			$this->triggerEvent('afterConnect');
 		}
-		return $this->_link;
+		return $this->_conn;
 	}
 
 	/**
-	 * Returns link indentifier.
+	 * Returns connection.
+	 * Alias of method getConnection().
+	 * @return \Ldap\Connection|resource|null
+	 * @deprecated
 	 */
 	public function getLink()
 	{
-		return $this->_link;
+		return $this->_conn;
+	}
+
+	/**
+	 * Returns connection.
+	 * @return \Ldap\Connection|resource|null
+	 */
+	public function getConnection()
+	{
+		return $this->_conn;
 	}
 
 	/**
@@ -453,25 +465,36 @@ class Ldap
 	 */
 	private function useSASL()
 	{
-		return (bool)$this->_saslMech;
+		return !empty($this->_saslMech);
 	}
 
-	private function bind()
+	/**
+	 * Bind to the LDAP-server from LDAP-connection
+	 * @param \Ldap\Connection|resource $conn
+	 * @return bool
+	 */
+	private function bind(&$conn)
 	{
-		if(!$this->_link)
+		if(!$conn)
 		{
 			throw new LdapException("No connection");
 		}
 
 		if($this->useSASL())
 		{
-			$this->_connect();
+			if(!empty($this->_saslMech))
+			{
+				if(!(@\ldap_sasl_bind($conn, NULL, $this->_password, $this->_saslMech, $this->_saslRealm, $this->_username)))
+				{
+					throw new LdapException("Binding ".$this->_saslMech." error: " . ldap_error($conn));
+				}
+			}
 		}
 		else
 		{
-			if(!(\ldap_bind($this->_link, $this->_username, $this->_password)) )
+			if(!(@\ldap_bind($conn, $this->_username, $this->_password)) )
 			{
-				throw new LdapException("Binding error: " . $this->getErrorMessage());
+				throw new LdapException("Binding error: " . \ldap_error($conn) );
 			}
 		}
 
@@ -483,15 +506,16 @@ class Ldap
 
 	/**
 	 * Unbinds from the LDAP-server.
-	 * @return boolean
+	 * @param \Ldap\Connection|resource $conn
+	 * @return bool
 	 */
-	private function unbind()
+	private function unbind(&$conn)
 	{
-        if($this->_link)
+        if($conn)
         {
-			if(@\ldap_unbind($this->_link))
+			if(@\ldap_unbind($conn))
 			{
-				$this->_link = null;
+				$conn = null;
 				return true;
 			}
 		}
@@ -505,11 +529,11 @@ class Ldap
 	 */
 	public function close()
 	{
-		if($this->_link)
+		if($this->_conn)
 		{
 			$this->triggerEvent('beforeClose');
 
-			if($this->unbind())
+			if($this->unbind($this->_conn))
 			{
 				$this->triggerEvent('afterClose');
 				return true;
@@ -528,7 +552,7 @@ class Ldap
 	 */
 	public function checkConnection()
 	{
-		if($this->_link)
+		if($this->_conn)
 		{
 			$errorNumber = $this->getErrorNumber();
 			return !($errorNumber == self::ERRNO_NO_CONNECTION);
@@ -544,7 +568,7 @@ class Ldap
 	 */
 	public function getErrorMessage()
 	{
-		return \ldap_error($this->_link);
+		return \ldap_error($this->_conn);
 	}
 
 	/**
@@ -554,19 +578,21 @@ class Ldap
 	 */
 	public function getErrorNumber()
 	{
-		 return \ldap_errno($this->_link);
+		 return \ldap_errno($this->_conn);
 	}
 
 	/**
 	 * Search LDAP tree.
 	 *
-	 * Examples:<br />
+	 * Examples:
 	 *
-	 * $filter = "samaccountname=johnSmith";<br />
-	 * $filter = "mail=johnSmith@example.com";<br />
-	 * $filter = "(&(objectCategory=group)(sAMAccountName=admins))";<br />
-	 * $filter = "(&(objectClass=user)( objectCategory=person)(userPrincipalName=johnSmith@mydomain.net))";<br />
-	 * $filter = "(&(objectClass=user)(memberof=CN=admins,OU=admins2folder,DC=rg,DC=net))";<br />
+	 * ```
+	 * $filter = "samaccountname=johnSmith";
+	 * $filter = "mail=johnSmith@example.com";
+	 * $filter = "(&(objectCategory=group)(sAMAccountName=admins))";
+	 * $filter = "(&(objectClass=user)( objectCategory=person)(userPrincipalName=johnSmith@mydomain.net))";
+	 * $filter = "(&(objectClass=user)(memberof=CN=admins,OU=admins2folder,DC=rg,DC=net))";
+	 * ```
 	 *
 	 * @param string $filter filter
 	 * @param array $attributes [optional] result attributes. Default value: Ldap::defaultLdapAttributes()
@@ -576,8 +602,6 @@ class Ldap
 	public function search($filter, $attributes = null, $dn = null)
 	{
 		$this->triggerEvent('beforeSearch');
-
-		$this->bind();
 
 		if(is_null($attributes))
 		{
@@ -589,7 +613,7 @@ class Ldap
 			$dn = $this->getBaseDN();
 		}
 
-		$result = \ldap_search($this->_link, $dn, $filter, $attributes);
+		$result = \ldap_search($this->_conn, $dn, $filter, $attributes);
 
 		$this->triggerEvent('afterSearch');
 
@@ -642,7 +666,7 @@ class Ldap
 	 */
 	protected function searchDecode($searchResult)
 	{
-		if(!$this->_link)
+		if(!$this->_conn)
 		{
 			return [];
 		}
@@ -652,7 +676,7 @@ class Ldap
 			return false;
 		}
 
-		return \ldap_get_entries($this->_link, $searchResult);
+		return \ldap_get_entries($this->_conn, $searchResult);
 	}
 
 
@@ -942,6 +966,11 @@ class Ldap
 	{
 		if(!$password or !$username) return false;
 
+
+		$this->triggerEvent('beforeValidatePassword');
+
+		$conn = $this->_connect();
+
 		$defaultDomain = $this->getDomainName();
 		$parsed = self::parseUsername($username, $defaultDomain);
 
@@ -951,20 +980,25 @@ class Ldap
 
 		if($this->useSASL())
 		{
-			$ok = @ldap_sasl_bind($this->_link, null, $password, $this->_saslPassMech, $this->_saslRealm, $samaccountName);
+			$ok = @ldap_sasl_bind($conn, null, $password, $this->_saslPassMech, $this->_saslRealm, $samaccountName);
 		}
 		else
 		{
-			$ok = @\ldap_bind($this->_link, $samaccountName.'@'.$domain, $password);
+			$ok = @\ldap_bind($conn, $samaccountName.'@'.$domain, $password);
 		}
 
 		if($ok)
 		{
+			$this->unbind($conn);
+			$this->triggerEvent('afterValidatePassword');
 			return true;
 		}
 		else
 		{
-			$errorNumber = $this->getErrorNumber();
+			$errorNumber = \ldap_errno($conn);
+			$errorMessage = \ldap_error($conn);
+			$this->unbind($conn);
+			$this->triggerEvent('afterValidatePassword');
 
 			if($errorNumber == self::ERRNO_INVALID_CREDENTIALS)
 			{
@@ -972,7 +1006,7 @@ class Ldap
 			}
 			else
 			{
-				throw new LdapException( $this->getErrorMessage() );
+				throw new LdapException( $errorMessage );
 			}
 		}
 	}
